@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAG — Don't You Dare Forget</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+–bg: #0d0d0d;
+–card: #141414;
+–border: #2a2a2a;
+–text: #f0ede6;
+–muted: #5a5a5a;
+–calm: #4ade80;
+–warn: #facc15;
+–urgent: #f97316;
+–panic: #ef4444;
+–accent: #f0ede6;
+}
+
+body {
+background: var(–bg);
+color: var(–text);
+font-family: ‘IBM Plex Mono’, monospace;
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 40px 16px 80px;
+position: relative;
+overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::before {
+content: ‘’;
+position: fixed;
+inset: 0;
+background: repeating-linear-gradient(
+0deg,
+transparent,
+transparent 2px,
+rgba(0,0,0,0.07) 2px,
+rgba(0,0,0,0.07) 4px
+);
+pointer-events: none;
+z-index: 9999;
+}
+
+header {
+text-align: center;
+margin-bottom: 48px;
+}
+
+.logo {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: clamp(64px, 15vw, 120px);
+letter-spacing: 0.04em;
+line-height: 1;
+color: var(–text);
+position: relative;
+display: inline-block;
+}
+
+.logo::after {
+content: ‘NAG’;
+position: absolute;
+inset: 0;
+color: var(–panic);
+clip-path: inset(40% 0 0 0);
+animation: glitch 4s infinite;
+opacity: 0.7;
+}
+
+@keyframes glitch {
+0%, 90%, 100% { transform: translate(0); clip-path: inset(40% 0 0 0); }
+92% { transform: translate(-3px, 1px); clip-path: inset(30% 0 10% 0); }
+94% { transform: translate(3px, -1px); clip-path: inset(50% 0 5% 0); }
+96% { transform: translate(-2px, 0); clip-path: inset(45% 0 0 0); }
+}
+
+.tagline {
+font-size: 11px;
+letter-spacing: 0.3em;
+color: var(–muted);
+text-transform: uppercase;
+margin-top: 8px;
+}
+
+/* Add task form */
+.add-section {
+width: 100%;
+max-width: 560px;
+margin-bottom: 40px;
+}
+
+.add-section label {
+display: block;
+font-size: 10px;
+letter-spacing: 0.25em;
+text-transform: uppercase;
+color: var(–muted);
+margin-bottom: 10px;
+}
+
+.input-row {
+display: flex;
+gap: 0;
+border: 1px solid var(–border);
+}
+
+.task-input {
+flex: 1;
+background: var(–card);
+border: none;
+outline: none;
+color: var(–text);
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 14px;
+padding: 14px 16px;
+}
+
+.task-input::placeholder { color: var(–muted); }
+
+.interval-select {
+background: #1a1a1a;
+border: none;
+border-left: 1px solid var(–border);
+color: var(–muted);
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 11px;
+padding: 14px 12px;
+outline: none;
+cursor: pointer;
+min-width: 80px;
+}
+
+.add-btn {
+background: var(–text);
+color: var(–bg);
+border: none;
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 18px;
+letter-spacing: 0.08em;
+padding: 14px 22px;
+cursor: pointer;
+transition: background 0.15s;
+}
+
+.add-btn:hover { background: var(–warn); }
+
+/* Task list */
+.tasks {
+width: 100%;
+max-width: 560px;
+display: flex;
+flex-direction: column;
+gap: 2px;
+}
+
+.empty-state {
+text-align: center;
+color: var(–muted);
+font-size: 12px;
+letter-spacing: 0.15em;
+padding: 48px 0;
+border: 1px dashed var(–border);
+}
+
+.task-card {
+background: var(–card);
+border: 1px solid var(–border);
+padding: 16px 18px;
+display: flex;
+align-items: center;
+gap: 16px;
+position: relative;
+overflow: hidden;
+transition: border-color 0.3s;
+}
+
+/* Urgency level indicator bar */
+.task-card::before {
+content: ‘’;
+position: absolute;
+left: 0;
+top: 0;
+bottom: 0;
+width: 3px;
+background: var(–level-color, var(–calm));
+transition: background 0.5s;
+}
+
+.task-card.level-0 { –level-color: var(–calm); border-color: #1a2e23; }
+.task-card.level-1 { –level-color: var(–warn); border-color: #2e2a10; }
+.task-card.level-2 { –level-color: var(–urgent); border-color: #2e1a0a; }
+.task-card.level-3 { –level-color: var(–panic); border-color: #2e0a0a; animation: pulse-border 1s ease-in-out infinite; }
+
+@keyframes pulse-border {
+0%, 100% { border-color: #2e0a0a; }
+50% { border-color: #5a1010; }
+}
+
+.task-info { flex: 1; min-width: 0; }
+
+.task-name {
+font-size: 14px;
+font-weight: 600;
+color: var(–text);
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+margin-bottom: 5px;
+}
+
+.task-meta {
+display: flex;
+align-items: center;
+gap: 12px;
+font-size: 10px;
+color: var(–muted);
+letter-spacing: 0.1em;
+}
+
+.task-timer {
+font-family: ‘Bebas Neue’, sans-serif;
+font-size: 22px;
+letter-spacing: 0.05em;
+color: var(–level-color, var(–calm));
+min-width: 68px;
+text-align: right;
+transition: color 0.5s;
+flex-shrink: 0;
+}
+
+.task-timer.shake {
+animation: shake 0.4s ease-in-out;
+}
+
+@keyframes shake {
+0%, 100% { transform: translateX(0); }
+20% { transform: translateX(-4px); }
+40% { transform: translateX(4px); }
+60% { transform: translateX(-3px); }
+80% { transform: translateX(3px); }
+}
+
+.done-btn {
+background: none;
+border: 1px solid var(–border);
+color: var(–muted);
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 10px;
+letter-spacing: 0.15em;
+padding: 6px 10px;
+cursor: pointer;
+text-transform: uppercase;
+flex-shrink: 0;
+transition: all 0.15s;
+}
+
+.done-btn:hover { border-color: var(–calm); color: var(–calm); }
+
+/* Notification flash overlay */
+#flash {
+position: fixed;
+inset: 0;
+pointer-events: none;
+z-index: 1000;
+opacity: 0;
+}
+
+#flash.flashing {
+animation: flash-anim 0.5s ease-out;
+}
+
+@keyframes flash-anim {
+0% { opacity: 0.25; background: var(–flash-color, #ef4444); }
+100% { opacity: 0; }
+}
+
+/* Toast */
+#toast-container {
+position: fixed;
+bottom: 24px;
+left: 50%;
+transform: translateX(-50%);
+display: flex;
+flex-direction: column;
+gap: 8px;
+align-items: center;
+z-index: 2000;
+pointer-events: none;
+}
+
+.toast {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 11px;
+letter-spacing: 0.12em;
+padding: 10px 18px;
+border-left: 3px solid;
+max-width: 340px;
+text-align: center;
+animation: toast-in 0.3s ease-out, toast-out 0.4s ease-in 2.6s forwards;
+pointer-events: none;
+}
+
+.toast.calm   { background: #0d1f14; border-color: var(–calm);   color: var(–calm);   }
+.toast.warn   { background: #1f1a09; border-color: var(–warn);   color: var(–warn);   }
+.toast.urgent { background: #1f1009; border-color: var(–urgent); color: var(–urgent); }
+.toast.panic  { background: #1f0909; border-color: var(–panic);  color: var(–panic);  }
+
+@keyframes toast-in  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes toast-out { from { opacity:1; } to { opacity:0; transform:translateY(8px); } }
+
+/* Snooze section */
+.snooze-hint {
+font-size: 10px;
+letter-spacing: 0.1em;
+color: var(–muted);
+}
+
+.level-badge {
+font-size: 9px;
+letter-spacing: 0.2em;
+text-transform: uppercase;
+padding: 2px 6px;
+border: 1px solid;
+border-color: var(–level-color, var(–calm));
+color: var(–level-color, var(–calm));
+}
+
+/* Shake entire page on panic */
+@keyframes page-shake {
+0%,100% { transform: translate(0,0); }
+10% { transform: translate(-6px, 2px); }
+30% { transform: translate(6px, -2px); }
+50% { transform: translate(-4px, 4px); }
+70% { transform: translate(4px, -4px); }
+90% { transform: translate(-2px, 2px); }
+}
+
+body.rage { animation: page-shake 0.6s ease-in-out; }
+</style>
+
+</head>
+<body>
+
+<div id="flash"></div>
+
+<header>
+  <div class="logo">NAG</div>
+  <p class="tagline">persistent reminders that don't shut up</p>
+</header>
+
+<div class="add-section">
+  <label>What do you need to do?</label>
+  <div class="input-row">
+    <input class="task-input" id="taskInput" type="text" placeholder="e.g. Call the landlord" maxlength="80" />
+    <select class="interval-select" id="intervalSelect" title="Remind every...">
+      <option value="30">30s</option>
+      <option value="60" selected>1 min</option>
+      <option value="120">2 min</option>
+      <option value="300">5 min</option>
+      <option value="600">10 min</option>
+    </select>
+    <button class="add-btn" onclick="addTask()">ADD</button>
+  </div>
+</div>
+
+<div class="tasks" id="taskList">
+  <div class="empty-state" id="emptyState">
+    — nothing to nag you about yet —
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let tasks = loadTasks();
+let tickInterval = null;
+
+const LEVEL_LABELS = ['CHILL', 'REMINDER', 'URGENT', 'PANIC'];
+const LEVEL_CLASSES = ['level-0', 'level-1', 'level-2', 'level-3'];
+const LEVEL_TOAST   = ['calm', 'warn', 'urgent', 'panic'];
+const LEVEL_NAGS = [
+  (n) => `Hey — don't forget: ${n}`,
+  (n) => `Still haven't done it: ${n}`,
+  (n) => `Seriously. ${n.toUpperCase()} — do it NOW.`,
+  (n) => `🚨 ${n.toUpperCase()} — WHY HAVEN'T YOU DONE THIS YET?!`
+];
+
+function loadTasks() {
+  try { return JSON.parse(localStorage.getItem('nag_tasks') || '[]'); } catch { return []; }
+}
+function saveTasks() {
+  try { localStorage.setItem('nag_tasks', JSON.stringify(tasks)); } catch {}
+}
+
+function urgencyLevel(secondsElapsed, intervalSecs) {
+  const cycles = secondsElapsed / intervalSecs;
+  if (cycles < 1) return 0;
+  if (cycles < 3) return 1;
+  if (cycles < 6) return 2;
+  return 3;
+}
+
+// ── Add Task ──────────────────────────────────────────────────────────────────
+function addTask() {
+  const input = document.getElementById('taskInput');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+
+  const intervalSecs = parseInt(document.getElementById('intervalSelect').value);
+  const task = {
+    id: Date.now(),
+    name,
+    intervalSecs,
+    createdAt: Date.now(),
+    lastNagAt: Date.now(),
+    nagCount: 0,
+  };
+  tasks.push(task);
+  saveTasks();
+  input.value = '';
+  renderTasks();
+  toast(`Task added. We'll remind you every ${fmtInterval(intervalSecs)}.`, 'calm');
+}
+
+document.getElementById('taskInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addTask();
+});
+
+// ── Done / Remove ─────────────────────────────────────────────────────────────
+function doneTask(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) toast(`✓ "${t.name}" — done. Finally.`, 'calm');
+  tasks = tasks.filter(t => t.id !== id);
+  saveTasks();
+  renderTasks();
+}
+
+// ── Tick ──────────────────────────────────────────────────────────────────────
+function tick() {
+  const now = Date.now();
+  let needsRender = false;
+
+  tasks.forEach(task => {
+    const secsSinceNag = (now - task.lastNagAt) / 1000;
+    if (secsSinceNag >= task.intervalSecs) {
+      task.lastNagAt = now;
+      task.nagCount++;
+      needsRender = true;
+
+      const secsSinceCreated = (now - task.createdAt) / 1000;
+      const level = urgencyLevel(secsSinceCreated, task.intervalSecs);
+      const msg = LEVEL_NAGS[level](task.name);
+
+      // Toast
+      toast(msg, LEVEL_TOAST[level]);
+
+      // Flash
+      flash(level);
+
+      // Page shake on panic
+      if (level === 3) {
+        document.body.classList.remove('rage');
+        void document.body.offsetWidth;
+        document.body.classList.add('rage');
+        setTimeout(() => document.body.classList.remove('rage'), 700);
+      }
+
+      // Browser notification
+      if (Notification.permission === 'granted') {
+        new Notification('NAG', { body: msg, silent: level < 2 });
+      }
+    }
+  });
+
+  // Always update timers in UI
+  updateTimers();
+
+  if (needsRender) renderTasks();
+}
+
+function updateTimers() {
+  const now = Date.now();
+  tasks.forEach(task => {
+    const el = document.getElementById(`timer-${task.id}`);
+    const card = document.getElementById(`card-${task.id}`);
+    if (!el || !card) return;
+
+    const secsSinceNag = (now - task.lastNagAt) / 1000;
+    const remaining = Math.max(0, task.intervalSecs - secsSinceNag);
+    el.textContent = fmtTimer(remaining);
+
+    // Shake timer when < 5 seconds
+    if (remaining <= 5 && remaining > 0 && !el.classList.contains('shake')) {
+      el.classList.add('shake');
+      setTimeout(() => el.classList.remove('shake'), 400);
+    }
+
+    // Update urgency level class
+    const secsSinceCreated = (now - task.createdAt) / 1000;
+    const level = urgencyLevel(secsSinceCreated, task.intervalSecs);
+    LEVEL_CLASSES.forEach(c => card.classList.remove(c));
+    card.classList.add(LEVEL_CLASSES[level]);
+
+    const badge = card.querySelector('.level-badge');
+    if (badge) badge.textContent = LEVEL_LABELS[level];
+    el.style.color = `var(--level-color)`;
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderTasks() {
+  const list = document.getElementById('taskList');
+  const empty = document.getElementById('emptyState');
+
+  if (tasks.length === 0) {
+    list.innerHTML = '';
+    list.appendChild(empty);
+    return;
+  }
+
+  // Keep empty state out
+  if (list.contains(empty)) list.removeChild(empty);
+
+  const now = Date.now();
+  const existingIds = new Set([...list.querySelectorAll('.task-card')].map(el => el.id.replace('card-', '')));
+
+  tasks.forEach(task => {
+    const secsSinceCreated = (now - task.createdAt) / 1000;
+    const secsSinceNag = (now - task.lastNagAt) / 1000;
+    const remaining = Math.max(0, task.intervalSecs - secsSinceNag);
+    const level = urgencyLevel(secsSinceCreated, task.intervalSecs);
+
+    if (existingIds.has(String(task.id))) return; // already in DOM
+
+    const card = document.createElement('div');
+    card.className = `task-card ${LEVEL_CLASSES[level]}`;
+    card.id = `card-${task.id}`;
+    card.innerHTML = `
+      <div class="task-info">
+        <div class="task-name">${escHtml(task.name)}</div>
+        <div class="task-meta">
+          <span class="level-badge">${LEVEL_LABELS[level]}</span>
+          <span class="snooze-hint">every ${fmtInterval(task.intervalSecs)}</span>
+          <span>nags: ${task.nagCount}</span>
+        </div>
+      </div>
+      <div class="task-timer" id="timer-${task.id}">${fmtTimer(remaining)}</div>
+      <button class="done-btn" onclick="doneTask(${task.id})">DONE</button>
+    `;
+    list.appendChild(card);
+  });
+
+  // Remove cards for deleted tasks
+  [...list.querySelectorAll('.task-card')].forEach(el => {
+    const id = parseInt(el.id.replace('card-', ''));
+    if (!tasks.find(t => t.id === id)) el.remove();
+  });
+}
+
+// ── Flash ─────────────────────────────────────────────────────────────────────
+function flash(level) {
+  const colors = ['#4ade80', '#facc15', '#f97316', '#ef4444'];
+  const f = document.getElementById('flash');
+  f.style.setProperty('--flash-color', colors[level]);
+  f.classList.remove('flashing');
+  void f.offsetWidth;
+  f.classList.add('flashing');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'calm') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function fmtTimer(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return m > 0 ? `${m}:${String(s).padStart(2,'0')}` : `0:${String(s).padStart(2,'0')}`;
+}
+
+function fmtInterval(secs) {
+  if (secs < 60) return `${secs}s`;
+  if (secs < 3600) return `${secs/60}m`;
+  return `${secs/3600}h`;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+// Request notification permission
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
+renderTasks();
+updateTimers();
+tickInterval = setInterval(tick, 1000);
+</script>
+
+</body>
+</html>
